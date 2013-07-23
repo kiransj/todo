@@ -15,10 +15,10 @@ const char * pr_state_tostring(PrState state)
         return PrState_string[0];
 }
 
-PrInfo NewPR(const int pr_number, const char * pr_desc)
+PrInfo NewPR(const char *pr_number, const char * pr_desc)
 {
     PrInfo pr;
-    pr.pr_number = pr_number;
+    strcpy(pr.pr_number, pr_number);
     strcpy(pr.pr_desc, pr_desc);
     time(&pr.pr_date);
     pr.pr_state = STATE_WORKING;
@@ -86,13 +86,13 @@ void print_pr(PrInfo pr)
     diff = difftime(now, pr.pr_date);
     timeinfo = localtime(&pr.pr_date);
     strftime(buffer, 1024, "%e-%b-%y %I%p", timeinfo);
-    printf("%lu %luHr %10s %s\n", pr.pr_number, diff/3600, pr_state_tostring(pr.pr_state), pr.pr_desc);
+    printf("%10s %luHr %10s %s\n", pr.pr_number, diff/3600, pr_state_tostring(pr.pr_state), pr.pr_desc);
 }
 
 bool SqlDB::connect(const char *filepath)
 {
     const char *query_create_todo_table =  "CREATE TABLE IF NOT EXISTS ToDoList (" 
-        "PR_NUMBER INTEGER PRIMARY KEY,"
+        "PR_NUMBER TEXT PRIMARY KEY,"
         "PR_DESC TEXT NOT NULL,"
         "PR_DATE INTEGER NOT NULL,"
         "PR_STATE INTEGER NOT NULL"
@@ -140,7 +140,7 @@ bool SqlDB::add_new_pr(const PrInfo pr)
     bool flag = false;
     char query_insert_newpr[1024];
     snprintf(query_insert_newpr, 1024,  "INSERT INTO ToDoList (PR_NUMBER, PR_DESC, PR_DATE, PR_STATE)"
-                                     "VALUES(%lu, '%s', %lu, %u);",
+                                     "VALUES('%s', '%s', %lu, %u);",
                                      pr.pr_number,
                                      pr.pr_desc,
                                      pr.pr_date,
@@ -165,7 +165,7 @@ bool SqlDB::add_new_pr(const PrInfo pr)
             }
             else if(rc == SQLITE_CONSTRAINT)
             {
-                snprintf(last_error_msg, 1024, "Pr %d could be already present in the list", pr.pr_number);
+                snprintf(last_error_msg, 1024, "Pr %s could be already present in the list", pr.pr_number);
             }
             else
             {
@@ -238,7 +238,7 @@ vector<PrInfo> SqlDB::get_all_pr(void)
             while((rc = sqlite3_step(statement)) == SQLITE_ROW)
             {
                 PrInfo pr;
-                pr.pr_number = (unsigned long)sqlite3_column_int(statement, 0);
+                strcpy(pr.pr_number, (char*)sqlite3_column_text(statement, 0));
                 strcpy(pr.pr_desc, (char*)sqlite3_column_text(statement, 1));
                 pr.pr_state = (PrState)sqlite3_column_int(statement, 2);
                 pr.pr_date = (time_t)sqlite3_column_int(statement, 3);
@@ -260,10 +260,10 @@ vector<PrInfo> SqlDB::get_all_pr(void)
 int main2(int argc, char *argv[])
 {
     SqlDB todo;   
-    PrInfo pr4 = NewPR(1341, "avi files not playing in GPVR");
-    PrInfo pr1 = NewPR(1342, "optimise MP4 seeks");
-    PrInfo pr2 = NewPR(1343, "implement AVI file");
-    PrInfo pr3 = NewPR(1344, "read the docs");
+    PrInfo pr4 = NewPR("1341", "avi files not playing in GPVR");
+    PrInfo pr1 = NewPR("1342", "optimise MP4 seeks");
+    PrInfo pr2 = NewPR("1343", "implement AVI file");
+    PrInfo pr3 = NewPR("1344", "read the docs");
     todo.connect("1.db");
     todo.add_new_pr(pr4);
     todo.add_new_pr(pr1);

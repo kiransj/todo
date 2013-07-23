@@ -16,8 +16,8 @@ typedef enum
 
 typedef struct
 {
-    unsigned long      pr_number;
-    char               pr_desc[64];
+    char               pr_number[16];
+    char               pr_desc[128];
     time_t             pr_date;
     PrState            pr_state;
 }PrInfo;
@@ -25,12 +25,12 @@ typedef struct
 
 const char * pr_state_tostring(PrState state);
 void print_pr(PrInfo pr);
-PrInfo NewPR(const int pr_number, const char * pr_desc);
+PrInfo NewPR(const char *pr_number, const char * pr_desc);
 const char * time_since(time_t time);
 class SqlDB
 {
     private:
-        char     sqldb[1024];
+        char     sqldb[256];
         sqlite3 *database;
         bool     status;
         char     last_error_msg[1024];
