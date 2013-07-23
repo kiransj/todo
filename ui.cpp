@@ -22,7 +22,7 @@ WINDOW *win_prlist, *win_scratch;
 vector<PrInfo> prlist;
 
 bool format_flag;
-const char *format1 = "%-20s| %-20s| %-20s|%s";
+const char *format1 = "%-25s| %-25s| %-25s|%s";
 const char *format2 = "%-10s| %-10s| %-10s|%s";
 
 static void finish(int sig)
@@ -120,7 +120,6 @@ void draw_ui(void)
     draw_box(0, 1, X-1, Y/4+2, "PR List");
 
     wrefresh(stdscr);
-    getch();
 }
 
 void updatePrList(void)
@@ -131,6 +130,7 @@ void updatePrList(void)
     return;
 }
 
+#define format_pr(pr) pr.pr_number, pr_state_tostring(pr.pr_state), time_since(pr.pr_date), pr.pr_desc
 void updatePrWindow(void)
 {
     int y, x, length;
@@ -163,7 +163,6 @@ void updatePrWindow(void)
     wmove(win_prlist, pr_cur_line, 0);
     wchgat(win_prlist, x, A_DIM, SELECTED_TEXT_COLOR, 0);
     wrefresh(win_prlist);
-   // draw_box(0, 1, X-1, Y/4+1, "PR List");
 }
 
 void PrWindowScrollUp(void)
@@ -250,17 +249,24 @@ void PrWindowScrollDown(void)
 
 void ReadNewPr(void)
 {
+    SqlDB todo;
     char pr_number[16], pr_header[64];
+
+    todo.connect("1.db");
     wclear(win_scratch);
     mvwprintw(win_scratch, 1, 1, "Enter the pr number : ");       
     echo();
-    wscanw(win_scratch, (char*)"%s", &pr_number);   
-    mvwprintw(win_scratch, 2, 1, "Enter the pr header: ");
-    wscanw(win_scratch, (char*)"%s", &pr_header);   
-    noecho();
+    wscanw(win_scratch, (char*)"%s", &pr_number);  
+    if(todo.get_pr(pr_number, NULL) == true)
     {
-        SqlDB todo;
-        todo.connect("1.db");
+        log("Error: %s already exists in the list", pr_number);
+    }
+    else
+    {
+        mvwprintw(win_scratch, 2, 1, "Enter the pr header: ");
+        wscanw(win_scratch, (char*)"%s", &pr_header);   
+        noecho();
+
         if(todo.add_new_pr(NewPR(pr_number, pr_header)) == false)
         {
             log("Error: %s", todo.last_error());
@@ -291,7 +297,13 @@ int main(int argc, char *argv[])
                 break;
             case '\n':
                 {
-                    log("selected text : %s", prlist[pr_index + pr_cur_line].pr_number);
+                    PrInfo pr;
+                    SqlDB todo;
+                    todo.connect("1.db");
+                    if(todo.get_pr( prlist[pr_index + pr_cur_line].pr_number+3, &pr))
+                        log("selected text : %s", pr.pr_desc);
+                    else
+                        log("%s", todo.last_error());
                     break;
                 }
             case KEY_DOWN:

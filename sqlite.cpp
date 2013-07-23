@@ -165,7 +165,10 @@ bool SqlDB::add_new_pr(const PrInfo pr)
             }
             else if(rc == SQLITE_CONSTRAINT)
             {
-                snprintf(last_error_msg, 1024, "Pr %s could be already present in the list", pr.pr_number);
+                if(get_pr(pr.pr_number, NULL) == true)
+                    snprintf(last_error_msg, 1024, "Pr %s already exists", pr.pr_number);
+                else
+                    snprintf(last_error_msg, 1024, "SQLITE_CONSTRAINT error");
             }
             else
             {
@@ -216,11 +219,54 @@ int SqlDB::count(void)
     }
     return count;
 }
+
+
+bool SqlDB::get_pr(const char *pr_number, PrInfo *pr)
+{
+    char query_pr[128];
+    snprintf(query_pr, 128, "SELECT PR_NUMBER, PR_DESC, PR_STATE, PR_DATE FROM ToDoList where PR_NUMBER = '%s'", pr_number);
+    if(status == false)
+    {
+        snprintf(last_error_msg, 1024, "First open the database before any query");
+        return false;
+    }
+    else
+    {
+        int rc;
+        sqlite3_stmt *statement;        
+        rc = sqlite3_prepare_v2(database, query_pr, -1, &statement, 0);
+        if(rc == SQLITE_OK)
+        {
+            int cols = sqlite3_column_count(statement);
+            int rc;
+            if((rc = sqlite3_step(statement)) == SQLITE_ROW)
+            {
+                if(NULL != pr)
+                {
+                    strcpy(pr->pr_number, (char*)sqlite3_column_text(statement, 0));
+                    strcpy(pr->pr_desc, (char*)sqlite3_column_text(statement, 1));
+                    pr->pr_state = (PrState)sqlite3_column_int(statement, 2);
+                    pr->pr_date = (time_t)sqlite3_column_int(statement, 3);
+                }
+                sqlite3_finalize(statement);
+                return true;
+            }
+            sqlite3_finalize(statement);
+            snprintf(last_error_msg, 1024, "Pr '%s' not found", pr_number);
+        }
+        else
+        {
+            snprintf(last_error_msg, 1024, "Query '%s' failed", query_pr);
+        }
+    }
+
+    return false;
+}
 vector<PrInfo> SqlDB::get_all_pr(void)
 {
     vector<PrInfo> prlist;
 
-    const char *query_all = "SELECT PR_NUMBER, PR_DESC, PR_STATE, PR_DATE FROM ToDoList ORDER By PR_DATE;";
+    const char *query_all = "SELECT PR_NUMBER, PR_DESC, PR_STATE, PR_DATE FROM ToDoList ORDER By PR_DATE DESC;";
     if(status == false)
     {
         snprintf(last_error_msg, 1024, "First open the database before any query");

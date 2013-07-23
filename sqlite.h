@@ -51,4 +51,5 @@ class SqlDB
         vector<PrInfo> get_all_pr(void);
         int count(void);
         char* last_error(void) { return last_error_msg; }
+        bool get_pr(const char *pr_number, PrInfo *pr);
 };
