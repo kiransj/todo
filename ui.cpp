@@ -38,6 +38,20 @@ static void finish(int sig)
     exit(0);
 }
 
+void log(const bool error, const char *format, ...);
+void updatePrWindow(void);
+void draw_ui(void);
+static void resume_program(int sig)
+{
+    draw_ui();
+    updatePrWindow();
+}
+
+static void stop_program(int sig)
+{
+    log(true, "Sleeping is not supported in this program currently");
+}
+
 int ncurse_init(void)
 {
     initscr();
@@ -46,13 +60,15 @@ int ncurse_init(void)
     nl();
     cbreak();
     noecho();
+    timeout(-1);
     if (has_colors())
     {
         start_color();
     }
     refresh();
     signal(SIGINT, finish);
-
+    signal(SIGTSTP, stop_program);	
+    signal(SIGCONT, resume_program);	
     init_pair(BORDER_COLOR,  COLOR_RED, COLOR_BLACK);
     init_pair(SELECTED_TEXT_COLOR,  COLOR_BLACK, COLOR_WHITE);
     init_pair(NORMAL_TEXT_COLOR,  COLOR_WHITE, COLOR_BLACK);
@@ -258,7 +274,16 @@ char* read_string(WINDOW *win, const bool number, int min_length )
     while(1)
     {
         int ch = wgetch(win);
-        if(ch == 27)
+
+        if(ch == 9 && (true == number))
+        {
+            int n;
+            srand(time(NULL));
+            n = snprintf(temp+i, 128 -i, "00%u", rand() % 10000);
+            wprintw(win, "%s", temp+i);
+            i += n;
+        }
+        else if(ch == 27)
         {
             return NULL;
         }
@@ -496,7 +521,7 @@ int start_ui(void)
                     break;
                 }
             case 27: /*ESC Key*/ 
-            case KEY_F(4):
+//            case KEY_F(4):
                 {
                     finish(0);                    
                 }
