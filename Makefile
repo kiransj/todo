@@ -7,7 +7,7 @@ INCLUDES := -I/usr/include/ncurses -I.
 LIB := -L/usr/lib -lncurses
 
 CPP_FILES = 
-CPP_FILES += sqlite.cpp
+CPP_FILES += db.cpp
 CPP_FILES += ui.cpp
 
 C_FILES = 

@@ -1,15 +1,9 @@
-#include "sqlite.h"
+#include "db.h"
 
 const char * pr_state_tostring(PrState state)
 {
-    static const char *PrState_string[] = { "UNKOWN", 
-                                            "NOT_STATED",
-                                            "WORKING   ",
-                                            "WAITING   ",
-                                            "CLOSED    ",
-                                            "UNKNOWN   "
-                                };
-    if(state >= STATE_NOT_STARTED && state <= STATE_CLOSED)
+
+    if(state >= STATE_NOT_STARTED && state < STATE_UNKNOWN)
         return PrState_string[state];
     else
         return PrState_string[0];
@@ -21,7 +15,7 @@ PrInfo NewPR(const char *pr_number, const char * pr_desc)
     strcpy(pr.pr_number, pr_number);
     strcpy(pr.pr_header, pr_desc);
     time(&pr.pr_date);
-    pr.pr_state = STATE_WORKING;
+    pr.pr_state = STATE_NOT_STARTED;
     return pr;
 }
 
@@ -373,7 +367,57 @@ vector<PrInfo> SqlDB::get_all_pr(void)
     return prlist;
 }
 
+bool SqlDB::add_update(const char *pr_number, const char *msg)
+{
+    char query_insert_update[1024];
+    time_t ti;
+    time(&ti);    
+    snprintf(query_insert_update, 1024,  "INSERT INTO PR_DESC (PR_NUMBER, DESCRIPTION, UPDATED_DATE)"
+                                         "VALUES('%s', '%s', %lu);",
+                                         pr_number, msg, ti);
+    if(status == false)
+    {
+        snprintf(last_error_msg, 1024, "First open the database before any query");
+        return false;
+    }
+    return execute_stmt(query_insert_update);
+}
 
+bool SqlDB::change_state(const char *pr_number, PrState new_state)
+{
+    PrInfo pr;
+    PrState old_state;
+    bool flag = false;
+    char query_state_change[512];   
+    snprintf(query_state_change, 512, "UPDATE TODOLIST SET PR_STATE=%d WHERE PR_NUMBER='%s';", new_state, pr_number);        
+    if(status == false)
+    {
+        snprintf(last_error_msg, 1024, "First open the database before any query");
+        return false;
+    }
+    
+    if(get_pr(pr_number, &pr) == false)
+    {
+        snprintf(last_error_msg, 1024, "Pr '%s' does not exists", pr_number);
+        return false;
+    }
+
+    old_state = pr.pr_state;
+    if(old_state == new_state)
+    {
+        snprintf(last_error_msg, 1024, "new and old state are the same");
+        return false;   
+    }       
+
+    flag = execute_stmt(query_state_change);
+    if(flag == true)
+    {
+        char msg[1024];
+        snprintf(msg, 1024, "change state from %s to %s", PrState_string[old_state], PrState_string[new_state]);
+        flag = add_update(pr_number, msg);
+    }
+    return flag;
+}
 
 int main2(int argc, char *argv[])
 {

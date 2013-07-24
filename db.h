@@ -5,12 +5,21 @@
 #include <vector>
 using namespace std;
 
+static const char *PrState_string[] = { "UNKOWN", 
+                                        "NOT_STARTED",
+                                        "WORKING",
+                                        "WAITING",
+                                        "CLOSED",
+                                        "DELETED",
+                                        "UNKNOWN"
+                               };
 typedef enum 
-{   
+{      
     STATE_NOT_STARTED = 1,
     STATE_WORKING,
     STATE_WAITING,
     STATE_CLOSED,
+    STATE_DELETED,
     STATE_UNKNOWN,
 }PrState;
 
@@ -64,4 +73,6 @@ class SqlDB
         int count(void);
         char* last_error(void) { return last_error_msg; }
         bool get_pr(const char *pr_number, PrInfo *pr);
+        bool change_state(const char *pr_number, PrState new_state);
+        bool add_update(const char *pr_number, const char *msg);
 };
