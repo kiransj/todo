@@ -83,7 +83,7 @@ void print_pr(PrInfo pr)
     struct tm *timeinfo;
 
     (long)time(&now);
-    diff = difftime(now, pr.pr_date);
+    diff = (long) difftime(now, pr.pr_date);
     timeinfo = localtime(&pr.pr_date);
     strftime(buffer, 1024, "%e-%b-%y %I%p", timeinfo);
     printf("%10s %luHr %10s %s\n", pr.pr_number, diff/3600, pr_state_tostring(pr.pr_state), pr.pr_header);    
