@@ -332,6 +332,37 @@ EXIT:
     wrefresh(win_scratch);
     return;
 }
+
+const char * date_to_str(time_t t)
+{
+    struct tm *timeinfo;
+    static char buffer[1024];
+    timeinfo = localtime(&t);
+    strftime(buffer, 1024, "%e-%b-%y %I%p", timeinfo);
+    return buffer;
+}
+void show_pr(const char *pr_number)
+{
+    PrInfo pr;
+    SqlDB todo = OpenDB();
+    if(todo.get_pr(pr_number, &pr) == false)
+    {
+        log(true, "%s", todo.last_error());
+        return;        
+    }
+
+    wclear(win_scratch);
+    mvwprintw(win_scratch, 1, 1, "Pr Number: %s", pr.pr_number);
+    mvwprintw(win_scratch, 2, 1, "Pr Header: %s", pr.pr_header);
+    mvwprintw(win_scratch, 3, 1, "Pr  State: %s", pr_state_tostring(pr.pr_state));
+    mvwprintw(win_scratch, 4, 1, "Pr   Date: %s", date_to_str(pr.pr_date));
+    for(int i = 0; i < pr.pr_desc.size(); i++)
+    {
+        mvwprintw(win_scratch, 6+i, 1, "    %s> %s", date_to_str(pr.pr_desc[i].updated_date), pr.pr_desc[i].pr_desc);
+    }
+    wrefresh(win_scratch);
+    return;
+}
 int main(int argc, char *argv[])
 {
     ncurse_init();
@@ -351,12 +382,15 @@ int main(int argc, char *argv[])
                 break;
             case '\n':
                 {
+#if 0                    
                     PrInfo pr;
                     SqlDB todo = OpenDB();
                     if(todo.get_pr( prlist[pr_index + pr_cur_line].pr_number, &pr))
                         log(false, "selected text : %s %s", pr.pr_header);
                     else
                         log(true, "%s", todo.last_error());
+#endif
+                    show_pr(prlist[pr_index+pr_cur_line].pr_number);
                     break;
                 }
             case KEY_DOWN:
