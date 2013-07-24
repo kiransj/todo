@@ -1,5 +1,7 @@
+#include <stdlib.h>
 #include "db.h"
 
+char DEFAULT_FILE_NAME[1024] = "todo.db";
 const char * pr_state_tostring(PrState state)
 {
 
@@ -114,7 +116,7 @@ bool SqlDB::execute_stmt(const char *query)
 }
 bool SqlDB::connect(const char *filepath)
 {
-
+    const char *filename = (NULL == filepath) ? DEFAULT_FILE_NAME : filepath;
     const char *query_enable_foreign_keys = "PRAGMA foreign_keys = ON;";   
 
     const char *query_create_todo_table =   "CREATE TABLE IF NOT EXISTS TODOLIST (" 
@@ -133,7 +135,7 @@ bool SqlDB::connect(const char *filepath)
 
 
     status = false;
-    if(sqlite3_open(filepath, &database) != SQLITE_OK)
+    if(sqlite3_open(filename, &database) != SQLITE_OK)
     {
         snprintf(last_error_msg, 1024, "sqlite3_open(%s) failed", filepath);
         database = NULL;
@@ -151,7 +153,7 @@ bool SqlDB::connect(const char *filepath)
     }
     else
     {
-        strcpy(sqldb, filepath);
+        strcpy(sqldb, filename);
     }
     return status;
 }
@@ -418,6 +420,15 @@ bool SqlDB::change_state(const char *pr_number, PrState new_state)
     }
     return flag;
 }
+
+int start_ui(void);
+int main(int argc, char *argv[])
+{
+    snprintf(DEFAULT_FILE_NAME, 1024, "%s/%s", getenv("HOME"), DB_NAME);
+    start_ui();
+    return 0;
+}
+
 
 int main2(int argc, char *argv[])
 {

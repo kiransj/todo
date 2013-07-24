@@ -131,7 +131,7 @@ void draw_ui(void)
 SqlDB OpenDB(void)
 {
     SqlDB todo;
-    if(todo.connect("1.db") == false)
+    if(todo.connect() == false)
     {
         log(true, "%s", todo.last_error()); 
     }
@@ -312,7 +312,7 @@ void ReadNewPr(void)
     }
     else
     {
-        mvwprintw(win_scratch, 2, 1, "Enter the pr header: ");
+        mvwprintw(win_scratch, 2, 1, "Enter the pr header : ");
         ptr = read_string(win_scratch, false, 10);
         if(NULL == ptr)
         {
@@ -447,7 +447,7 @@ void AddUpdate(const char *pr_number)
     updatePrWindow();
     return;
 }
-int main(int argc, char *argv[])
+int start_ui(void)
 {
     ncurse_init();
     draw_ui();

@@ -5,6 +5,7 @@
 #include <vector>
 using namespace std;
 
+#define DB_NAME ".todo.db"
 static const char *PrState_string[] = { "UNKOWN", 
                                         "NOT_STARTED",
                                         "WORKING",
@@ -65,9 +66,9 @@ class SqlDB
             if(NULL != database)
             {
                 sqlite3_close(database);
-            }            
+            }
         }
-        bool connect(const char *filepath);
+        bool connect(const char *filepath = NULL);
         bool add_new_pr(const PrInfo pr);
         vector<PrInfo> get_all_pr(void);
         int count(void);
