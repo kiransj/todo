@@ -19,7 +19,7 @@ PrInfo NewPR(const char *pr_number, const char * pr_desc)
 {
     PrInfo pr;
     strcpy(pr.pr_number, pr_number);
-    strcpy(pr.pr_desc, pr_desc);
+    strcpy(pr.pr_header, pr_desc);
     time(&pr.pr_date);
     pr.pr_state = STATE_WORKING;
     return pr;
@@ -43,32 +43,32 @@ const char * time_since(time_t old_time)
     diff = diff/60;
     if(diff < 60)
     {
-        snprintf(str, 128, "few Min Ago");
+        snprintf(str, 128, "%2d Mn%s Ago", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
     diff = diff/60;
     if(diff < 24)
     {
-        snprintf(str, 128, "Few Hrs Ago", (int)diff);
+        snprintf(str, 128, "%2d Hr%s Ago", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
     diff = diff/24;
     if(diff < 7)
     {
-        snprintf(str, 128, "%d Days Ago ", (int)diff);
+        snprintf(str, 128, "%2d Dy%s Ago ", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
     diff = diff/7;
     if(diff <= 4)
     {
-        snprintf(str, 128, "%d Week Ago ", (int)diff);
+        snprintf(str, 128, "%2d Wk%s Ago ", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
 
     diff = diff/4;
     if(diff < 12)
     {
-        snprintf(str, 128, "%d Months Ago", (int)diff);
+        snprintf(str, 128, "%2d Mn%s Ago", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
     return str;
@@ -86,17 +86,57 @@ void print_pr(PrInfo pr)
     diff = difftime(now, pr.pr_date);
     timeinfo = localtime(&pr.pr_date);
     strftime(buffer, 1024, "%e-%b-%y %I%p", timeinfo);
-    printf("%10s %luHr %10s %s\n", pr.pr_number, diff/3600, pr_state_tostring(pr.pr_state), pr.pr_desc);
+    printf("%10s %luHr %10s %s\n", pr.pr_number, diff/3600, pr_state_tostring(pr.pr_state), pr.pr_header);    
+    for(int i = 0; i < pr.pr_desc.size(); i++)
+    {
+        printf("       %d> %s %d\n", 1+i, pr.pr_desc[i].pr_desc, pr.pr_desc[i].updated_date); 
+    }
 }
 
+bool SqlDB::execute_stmt(const char *query)
+{
+    int rc;
+    bool flag = false;    
+    sqlite3_stmt *statement;        
+    rc = sqlite3_prepare_v2(database, query, -1, &statement, 0);
+    if(rc == SQLITE_OK)
+    {
+        int rc = sqlite3_step(statement);
+        if(rc == SQLITE_DONE)
+        {
+            flag = true;
+        }
+        else
+        {
+            snprintf(last_error_msg, 1024, "Create table query '%s' failed", query);
+        }
+        sqlite3_finalize(statement);
+    }
+    else
+    {
+        snprintf(last_error_msg, 1024, "Create table query '%s' failed", query);
+    }
+    return flag;
+}
 bool SqlDB::connect(const char *filepath)
 {
-    const char *query_create_todo_table =  "CREATE TABLE IF NOT EXISTS ToDoList (" 
-        "PR_NUMBER TEXT PRIMARY KEY,"
-        "PR_DESC TEXT NOT NULL,"
-        "PR_DATE INTEGER NOT NULL,"
-        "PR_STATE INTEGER NOT NULL"
-        ");";
+
+    const char *query_enable_foreign_keys = "PRAGMA foreign_keys = ON;";   
+
+    const char *query_create_todo_table =   "CREATE TABLE IF NOT EXISTS TODOLIST (" 
+                                            "PR_NUMBER TEXT PRIMARY KEY,"
+                                            "PR_HEADER TEXT NOT NULL,"
+                                            "PR_DATE INTEGER NOT NULL,"
+                                            "PR_STATE INTEGER NOT NULL"
+                                            ");";
+
+    const char *query_create_desc_table =   "CREATE TABLE IF NOT EXISTS PR_DESC (" 
+                                            "PR_NUMBER TEXT NOT NULL,"
+                                            "DESCRIPTION TEXT NOT NULL,"
+                                            "UPDATED_DATE INTEGER NOT NULL,"
+                                            "FOREIGN KEY(PR_NUMBER) REFERENCES TODOLIST(PR_NUMBER)"
+                                            ");";   
+
 
     status = false;
     if(sqlite3_open(filepath, &database) != SQLITE_OK)
@@ -107,30 +147,18 @@ bool SqlDB::connect(const char *filepath)
     } 
     else
     {
-
-        int rc;
-        sqlite3_stmt *statement;        
-        rc = sqlite3_prepare_v2(database, query_create_todo_table, -1, &statement, 0);
-        if(rc == SQLITE_OK)
-        {
-            int rc = sqlite3_step(statement);
-            if(rc == SQLITE_DONE)
-            {
-                status = true;
-            }
-            else
-            {
-                snprintf(last_error_msg, 1024, "Create table query '%s' failed", query_create_todo_table);
-            }
-            sqlite3_finalize(statement);
-
-        }
+        status = execute_stmt(query_enable_foreign_keys);
+        if(true == status) status = execute_stmt(query_create_todo_table);
+        if(true == status) status = execute_stmt(query_create_desc_table);
     }
     if(status == false)
     {
         sqlite3_close(database);
     }
-    strcpy(sqldb, filepath);
+    else
+    {
+        strcpy(sqldb, filepath);
+    }
     return status;
 }
 
@@ -139,10 +167,10 @@ bool SqlDB::add_new_pr(const PrInfo pr)
 {
     bool flag = false;
     char query_insert_newpr[1024];
-    snprintf(query_insert_newpr, 1024,  "INSERT INTO ToDoList (PR_NUMBER, PR_DESC, PR_DATE, PR_STATE)"
+    snprintf(query_insert_newpr, 1024,  "INSERT INTO ToDoList (PR_NUMBER, PR_HEADER, PR_DATE, PR_STATE)"
                                      "VALUES('%s', '%s', %lu, %u);",
                                      pr.pr_number,
-                                     pr.pr_desc,
+                                     pr.pr_header,
                                      pr.pr_date,
                                      pr.pr_state);
     if(status == false)
@@ -220,11 +248,50 @@ int SqlDB::count(void)
     return count;
 }
 
+vector<PrDesc> SqlDB::get_pr_desc(const char *pr_number)
+{
+    vector<PrDesc> desc;
+
+    char query_pr_desc[1024];
+        
+        
+    snprintf(query_pr_desc, 1024, "SELECT DESCRIPTION, UPDATED_DATE FROM PR_DESC WHERE PR_NUMBER = '%s' ORDER BY UPDATED_DATE DESC;", pr_number);
+    if(status == false)
+    {
+        snprintf(last_error_msg, 1024, "First open the database before any query");
+        return desc;
+    }
+    else
+    {
+        int rc;
+        sqlite3_stmt *statement;        
+        rc = sqlite3_prepare_v2(database, query_pr_desc, -1, &statement, 0);
+        if(rc == SQLITE_OK)
+        {
+            int cols = sqlite3_column_count(statement);
+            int rc;
+            while((rc = sqlite3_step(statement)) == SQLITE_ROW)
+            {
+                PrDesc pr_desc;
+                strcpy(pr_desc.pr_desc, (char*)sqlite3_column_text(statement, 0));
+                pr_desc.updated_date = (time_t)sqlite3_column_int(statement, 1);
+                desc.push_back(pr_desc);
+            }
+            sqlite3_finalize(statement);
+        }
+        else
+        {
+            snprintf(last_error_msg, 1024, "Query '%s' failed", query_pr_desc);
+        }
+    }
+
+    return desc;
+}
 
 bool SqlDB::get_pr(const char *pr_number, PrInfo *pr)
 {
     char query_pr[128];
-    snprintf(query_pr, 128, "SELECT PR_NUMBER, PR_DESC, PR_STATE, PR_DATE FROM ToDoList where PR_NUMBER = '%s'", pr_number);
+    snprintf(query_pr, 128, "SELECT PR_NUMBER, PR_HEADER, PR_STATE, PR_DATE FROM ToDoList where PR_NUMBER = '%s'", pr_number);
     if(status == false)
     {
         snprintf(last_error_msg, 1024, "First open the database before any query");
@@ -244,9 +311,10 @@ bool SqlDB::get_pr(const char *pr_number, PrInfo *pr)
                 if(NULL != pr)
                 {
                     strcpy(pr->pr_number, (char*)sqlite3_column_text(statement, 0));
-                    strcpy(pr->pr_desc, (char*)sqlite3_column_text(statement, 1));
+                    strcpy(pr->pr_header, (char*)sqlite3_column_text(statement, 1));
                     pr->pr_state = (PrState)sqlite3_column_int(statement, 2);
                     pr->pr_date = (time_t)sqlite3_column_int(statement, 3);
+                    pr->pr_desc = get_pr_desc(pr->pr_number); 
                 }
                 sqlite3_finalize(statement);
                 return true;
@@ -266,7 +334,10 @@ vector<PrInfo> SqlDB::get_all_pr(void)
 {
     vector<PrInfo> prlist;
 
-    const char *query_all = "SELECT PR_NUMBER, PR_DESC, PR_STATE, PR_DATE FROM ToDoList ORDER By PR_DATE DESC;";
+    const char *query_all = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, "
+                            "(SELECT COUNT(*) FROM PR_DESC WHERE PR_NUMBER = P.PR_NUMBER) AS COUNT "
+                            "FROM ToDoList as P "
+                            "ORDER By PR_DATE DESC;";
     if(status == false)
     {
         snprintf(last_error_msg, 1024, "First open the database before any query");
@@ -285,9 +356,10 @@ vector<PrInfo> SqlDB::get_all_pr(void)
             {
                 PrInfo pr;
                 strcpy(pr.pr_number, (char*)sqlite3_column_text(statement, 0));
-                strcpy(pr.pr_desc, (char*)sqlite3_column_text(statement, 1));
+                strcpy(pr.pr_header, (char*)sqlite3_column_text(statement, 1));
                 pr.pr_state = (PrState)sqlite3_column_int(statement, 2);
                 pr.pr_date = (time_t)sqlite3_column_int(statement, 3);
+                pr.num_desc = (int)sqlite3_column_int(statement, 4);
                 prlist.push_back(pr);
             }
             sqlite3_finalize(statement);
@@ -310,7 +382,12 @@ int main2(int argc, char *argv[])
     PrInfo pr1 = NewPR("1342", "optimise MP4 seeks");
     PrInfo pr2 = NewPR("1343", "implement AVI file");
     PrInfo pr3 = NewPR("1344", "read the docs");
-    todo.connect("1.db");
+
+    if(false == todo.connect("1.db"))
+    {
+        printf("%s\n", todo.last_error());
+        return 0l;
+    }
     todo.add_new_pr(pr4);
     todo.add_new_pr(pr1);
     todo.add_new_pr(pr2);
@@ -324,7 +401,9 @@ int main2(int argc, char *argv[])
 
     for(int i = 0; i < pr.size(); i++)
     {
-        print_pr(pr[i]);
+        PrInfo pr1;
+        todo.get_pr(pr[i].pr_number, &pr1);
+        print_pr(pr1);;
     }
     return 0;
 }

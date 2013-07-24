@@ -14,12 +14,21 @@ typedef enum
     STATE_UNKNOWN,
 }PrState;
 
+typedef struct 
+{
+    char        pr_desc[1024];
+    time_t      updated_date;
+}PrDesc;
+
 typedef struct
 {
     char               pr_number[16];
-    char               pr_desc[128];
+    char               pr_header[128];
     time_t             pr_date;
     PrState            pr_state;
+    int                num_desc;
+
+    vector<PrDesc>     pr_desc;
 }PrInfo;
 
 
@@ -34,6 +43,9 @@ class SqlDB
         sqlite3 *database;
         bool     status;
         char     last_error_msg[1024];
+
+        bool     execute_stmt(const char *query);
+        vector<PrDesc> get_pr_desc(const char *pr_number);
     public:
         SqlDB()
         {

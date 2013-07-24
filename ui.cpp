@@ -1,6 +1,7 @@
 #include <ncurses.h>
 #include <signal.h>
 #include <string.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include "sqlite.h"
@@ -11,19 +12,21 @@ using namespace std;
 #define X COLS
 #define Y LINES
 
-#define BORDER_COLOR        1
-#define MENU_BAR            2
-#define NORMAL_TEXT_COLOR   3
-#define SELECTED_TEXT_COLOR 4
-#define LOG_TEXT_COLOR      5
+#define BORDER_COLOR                1
+#define MENU_BAR                    2
+#define NORMAL_TEXT_COLOR           3
+#define SELECTED_TEXT_COLOR         4
+#define LOG_NORMAL_TEXT_COLOR       5
+#define LOG_ERROR_TEXT_COLOR        6
 
 int pr_index, pr_cur_line;
 WINDOW *win_prlist, *win_scratch;
 vector<PrInfo> prlist;
 
 bool format_flag;
-const char *format1 = "%-25s| %-25s| %-25s|%s";
-const char *format2 = "%-10s| %-10s| %-10s|%s";
+const char *format1 = "%-25s| %-25s| %-25s| %2d| %s";
+const char *format2 = "%-10s| %-10s| %-10s| %2d| %s";
+#define format_pr(pr) pr.pr_number, pr_state_tostring(pr.pr_state), time_since(pr.pr_date), pr.num_desc, pr.pr_header
 
 static void finish(int sig)
 {
@@ -54,7 +57,9 @@ int ncurse_init(void)
     init_pair(SELECTED_TEXT_COLOR,  COLOR_BLACK, COLOR_WHITE);
     init_pair(NORMAL_TEXT_COLOR,  COLOR_WHITE, COLOR_BLACK);
     init_pair(MENU_BAR,  COLOR_WHITE, COLOR_BLUE);
-    init_pair(LOG_TEXT_COLOR,  COLOR_RED, COLOR_WHITE);
+
+    init_pair(LOG_NORMAL_TEXT_COLOR, COLOR_GREEN, COLOR_BLACK);
+    init_pair(LOG_ERROR_TEXT_COLOR,  COLOR_RED, COLOR_BLACK);
 }
 
 void draw_box(int x, int y, int x1, int y1, const char *ptr)
@@ -75,15 +80,16 @@ void draw_box(int x, int y, int x1, int y1, const char *ptr)
     wrefresh(stdscr);
 }
 
-void log(const char *format, ...)
+void log(const bool error, const char *format, ...)
 {
+    const int color = (error) ? LOG_ERROR_TEXT_COLOR : LOG_NORMAL_TEXT_COLOR;
     va_list list;
     va_start(list, format);    
     move(Y-1, 0);
     clrtoeol();
     move(Y-1, 0);
-    wchgat(stdscr, X, 0, LOG_TEXT_COLOR, 0);
-    attrset(COLOR_PAIR(LOG_TEXT_COLOR));
+    wchgat(stdscr, X, 0, color, 0);
+    attrset(COLOR_PAIR(color));
     vw_printw(stdscr, format, list);
     wrefresh(stdscr);
 }
@@ -122,15 +128,23 @@ void draw_ui(void)
     wrefresh(stdscr);
 }
 
-void updatePrList(void)
+SqlDB OpenDB(void)
 {
     SqlDB todo;
-    todo.connect("1.db");
+    if(todo.connect("1.db") == false)
+    {
+        log(true, "%s", todo.last_error()); 
+    }
+    return todo;
+}
+void updatePrList(void)
+{
+    SqlDB todo = OpenDB();
     prlist = todo.get_all_pr();
     return;
 }
 
-#define format_pr(pr) pr.pr_number, pr_state_tostring(pr.pr_state), time_since(pr.pr_date), pr.pr_desc
+
 void updatePrWindow(void)
 {
     int y, x, length;
@@ -143,7 +157,7 @@ void updatePrWindow(void)
     for(int i = 0; i < prlist.size(); i++)
     {
         char format[1024];
-        if(snprintf(NULL, 0, format1, prlist[i].pr_number, pr_state_tostring(prlist[i].pr_state), time_since(prlist[i].pr_date), prlist[i].pr_desc) >= x)
+        if(snprintf(NULL, 0, format1, format_pr(prlist[i])) >= x)
         {
             format_flag = true;
             break;
@@ -153,10 +167,7 @@ void updatePrWindow(void)
     for(int i = 0; i < length; i++)
     {
         char str[1024];
-        snprintf(str, 1024, format_flag ? format2 : format1, prlist[i].pr_number, 
-                                                             pr_state_tostring(prlist[i].pr_state), 
-                                                             time_since(prlist[i].pr_date),
-                                                             prlist[i].pr_desc);
+        snprintf(str, 1024, format_flag ? format2 : format1, format_pr(prlist[i]));
         str[x-1] = 0;
         mvwprintw(win_prlist, i, 0, "%s", str);
     }
@@ -193,10 +204,7 @@ void PrWindowScrollUp(void)
 
     {
         char str[1024];
-        snprintf(str, 1024, format_flag ? format2 : format1, prlist[pr_index+pr_cur_line].pr_number, 
-                                                             pr_state_tostring(prlist[pr_index+pr_cur_line].pr_state), 
-                                                             time_since(prlist[pr_index+pr_cur_line].pr_date),
-                                                             prlist[pr_index + pr_cur_line].pr_desc);
+        snprintf(str, 1024, format_flag ? format2 : format1, format_pr(prlist[pr_index+pr_cur_line]));
         str[x-1] = 0;
         mvwprintw(win_prlist, pr_cur_line , 0, "%s", str);
     }
@@ -233,10 +241,7 @@ void PrWindowScrollDown(void)
 
     {
         char str[1024];
-        snprintf(str, 1024, format_flag ? format2 : format1, prlist[pr_index+pr_cur_line].pr_number, 
-                                                             pr_state_tostring(prlist[pr_index+pr_cur_line].pr_state), 
-                                                             time_since(prlist[pr_index+pr_cur_line].pr_date),
-                                                             prlist[pr_index + pr_cur_line].pr_desc);
+        snprintf(str, 1024, format_flag ? format2 : format1, format_pr(prlist[pr_index+pr_cur_line]));
         str[x-1] = 0;
         mvwprintw(win_prlist, pr_cur_line, 0, "%s", str);
     }
@@ -246,34 +251,83 @@ void PrWindowScrollDown(void)
     wrefresh(win_prlist);
 }
 
+char* read_string(WINDOW *win, const bool number, int min_length )
+{
+    int i = 0;
+    static char temp[128];
+    while(1)
+    {
+        int ch = wgetch(win);
+        if(ch == 27)
+        {
+            return NULL;
+        }
+        else if(isdigit(ch) || (ch >= 0x20 && ch <= 0x7E) && (number == false) )
+        {
+            temp[i] = ch;
+            wprintw(win, "%c", ch);
+            wrefresh(win);
+            i++;
+        }
+        else if(ch == 127 && i > 0)
+        {
+            wprintw(win, "\b \b");
+            wrefresh(win);       
+            i--;
+        }
+        else if(ch == '\n')
+        {
+            if(min_length == 0 || (i >= min_length))
+            {
+                temp[i] = 0;
+                return (temp); 
+            }
+            else
+            {
+                int y, x;
+                getyx(win, y, x);
+                log(true, "min length of string should be %d", min_length);
+                wmove(win, y, x);
+            }
+        }
+    }
+}
 
 void ReadNewPr(void)
 {
-    SqlDB todo;
+    SqlDB todo = OpenDB();
     char pr_number[16], pr_header[64];
-
-    todo.connect("1.db");
+    char *ptr;
     wclear(win_scratch);
-    mvwprintw(win_scratch, 1, 1, "Enter the pr number : ");       
-    echo();
-    wscanw(win_scratch, (char*)"%s", &pr_number);  
+    mvwprintw(win_scratch, 1, 1, "Enter the pr number : ");          
+    ptr = read_string(win_scratch, true, 6);
+    if(ptr == NULL)
+    {
+        goto EXIT;
+    }
+    strcpy(pr_number, ptr);
     if(todo.get_pr(pr_number, NULL) == true)
     {
-        log("Error: %s already exists in the list", pr_number);
+        log(true, "Error: PR %s already exists in the list", pr_number);
     }
     else
     {
         mvwprintw(win_scratch, 2, 1, "Enter the pr header: ");
-        wscanw(win_scratch, (char*)"%s", &pr_header);   
-        noecho();
-
+        ptr = read_string(win_scratch, false, 10);
+        if(NULL == ptr)
+        {
+            goto EXIT;
+        }
+           
+        strcpy(pr_header, ptr);  
         if(todo.add_new_pr(NewPR(pr_number, pr_header)) == false)
         {
-            log("Error: %s", todo.last_error());
+            log(true, "Error: %s", todo.last_error());
         }
         updatePrList();
         updatePrWindow();
     }
+EXIT:    
     wclear(win_scratch);
     wrefresh(win_scratch);
     return;
@@ -298,12 +352,11 @@ int main(int argc, char *argv[])
             case '\n':
                 {
                     PrInfo pr;
-                    SqlDB todo;
-                    todo.connect("1.db");
-                    if(todo.get_pr( prlist[pr_index + pr_cur_line].pr_number+3, &pr))
-                        log("selected text : %s", pr.pr_desc);
+                    SqlDB todo = OpenDB();
+                    if(todo.get_pr( prlist[pr_index + pr_cur_line].pr_number, &pr))
+                        log(false, "selected text : %s %s", pr.pr_header);
                     else
-                        log("%s", todo.last_error());
+                        log(true, "%s", todo.last_error());
                     break;
                 }
             case KEY_DOWN:
@@ -321,13 +374,15 @@ int main(int argc, char *argv[])
                     ReadNewPr();
                     break;
                 }
+            case 27: /*ESC Key*/ 
             case KEY_F(4):
                 {
                     finish(0);                    
                 }
             default:
                 {
-                    log("key pressed %d", ch);                           
+                    log(false, "key pressed %d", ch);
+                    break;
                 }
         }
     }
