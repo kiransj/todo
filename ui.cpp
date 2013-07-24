@@ -403,8 +403,8 @@ void ChangePrState(const char *pr_number)
     wclear(win_scratch);
     mvwprintw(win_scratch, 1, 1, "Pr Number: %s", pr.pr_number);
     mvwprintw(win_scratch, 2, 1, "Pr Header: %s", pr.pr_header);
-    mvwprintw(win_scratch, 3, 1, "Pr  State: %s", pr_state_tostring(pr.pr_state));
-    mvwprintw(win_scratch, 4, 1, "Pr   Date: %s", date_to_str(pr.pr_date));
+    mvwprintw(win_scratch, 3, 1, "Pr State : %s", pr_state_tostring(pr.pr_state));
+    mvwprintw(win_scratch, 4, 1, "Pr Date  : %s", date_to_str(pr.pr_date));
     mvwprintw(win_scratch, 6, 1, "Choose the next state from below");
     for(i = 1; i < (state_count - 1); i++)
     {        
@@ -460,12 +460,19 @@ void AddUpdate(const char *pr_number)
     wclear(win_scratch);
     mvwprintw(win_scratch, 1, 1, "Pr Number: %s", pr.pr_number);
     mvwprintw(win_scratch, 2, 1, "Pr Header: %s", pr.pr_header);
-    mvwprintw(win_scratch, 3, 1, "Pr  State: %s", pr_state_tostring(pr.pr_state));
-    mvwprintw(win_scratch, 4, 1, "Pr   Date: %s", date_to_str(pr.pr_date));
+    mvwprintw(win_scratch, 3, 1, "Pr State : %s", pr_state_tostring(pr.pr_state));
+    mvwprintw(win_scratch, 4, 1, "Pr Date  : %s", date_to_str(pr.pr_date));
     mvwprintw(win_scratch, 6, 1, "your update > ");
-    update = read_string(win_scratch, false, 5);
     wrefresh(win_scratch);
-    todo.add_update(pr_number, update);   
+    update = read_string(win_scratch, false, 5);    
+    if(NULL != update)
+    {
+        todo.add_update(pr_number, update); 
+    }
+    else
+    {
+        log(false, "adding update to pr cancelled");
+    }
     wclear(win_scratch);
     wrefresh(win_scratch);   
     updatePrList();

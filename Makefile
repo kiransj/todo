@@ -1,7 +1,7 @@
 GCC=gcc
 CPP=g++
 AR=ar
-CFLAGS := -g 
+CFLAGS := -O2 
 WARNINGS:= 
 INCLUDES := -I/usr/include/ncurses -I.
 LIB := -L/usr/lib -lncurses
@@ -17,7 +17,7 @@ COMPILER_OBJECTS :=
 COMPILER_OBJECTS_CPP := $(CPP_FILES:.cpp=.o)
 COMPILER_OBJECTS_C := $(C_FILES:.c=.o) 	
 
-OUTPUT=a.out
+OUTPUT=todo.out
 
 all: $(COMPILER_OBJECTS_CPP) $(COMPILER_OBJECTS_C)
 	@g++ $(COMPILER_OBJECTS_CPP) $(COMPILER_OBJECTS_C) $(LIB) -o $(OUTPUT)
