@@ -333,7 +333,7 @@ vector<PrInfo> SqlDB::get_all_pr(void)
     const char *query_all = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, "
                             "(SELECT COUNT(*) FROM PR_DESC WHERE PR_NUMBER = P.PR_NUMBER) AS COUNT "
                             "FROM ToDoList as P "
-                            "ORDER By PR_STATE;";
+                            "ORDER By PR_STATE ASC, PR_DATE DESC;";
     if(status == false)
     {
         snprintf(last_error_msg, 1024, "First open the database before any query");

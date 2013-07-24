@@ -18,6 +18,8 @@ using namespace std;
 #define SELECTED_TEXT_COLOR         4
 #define LOG_NORMAL_TEXT_COLOR       5
 #define LOG_ERROR_TEXT_COLOR        6
+#define NORMAL_TEXT_COLOR_RED       7
+#define NORMAL_TEXT_COLOR_GREEN     8
 
 int pr_index, pr_cur_line;
 WINDOW *win_prlist, *win_scratch;
@@ -67,13 +69,14 @@ int ncurse_init(void)
     }
     refresh();
     signal(SIGINT, finish);
-    signal(SIGTSTP, stop_program);	
-    signal(SIGCONT, resume_program);	
-    init_pair(BORDER_COLOR,  COLOR_RED, COLOR_BLACK);
+    signal(SIGTSTP, stop_program);
+    signal(SIGCONT, resume_program);
+    init_pair(BORDER_COLOR,  COLOR_MAGENTA, COLOR_BLACK);
     init_pair(SELECTED_TEXT_COLOR,  COLOR_BLACK, COLOR_WHITE);
     init_pair(NORMAL_TEXT_COLOR,  COLOR_WHITE, COLOR_BLACK);
+    init_pair(NORMAL_TEXT_COLOR_RED,  COLOR_RED, COLOR_BLACK);
+    init_pair(NORMAL_TEXT_COLOR_GREEN,  COLOR_GREEN, COLOR_BLACK);
     init_pair(MENU_BAR,  COLOR_WHITE, COLOR_BLUE);
-
     init_pair(LOG_NORMAL_TEXT_COLOR, COLOR_GREEN, COLOR_BLACK);
     init_pair(LOG_ERROR_TEXT_COLOR,  COLOR_RED, COLOR_BLACK);
 }
@@ -91,7 +94,7 @@ void draw_box(int x, int y, int x1, int y1, const char *ptr)
     mvwaddch(stdscr, y1, x1, ACS_LRCORNER);
     if(NULL != ptr)
     {
-        mvwprintw(stdscr, y, (x1+x - strlen(ptr))/2, "%s", ptr);
+        mvwprintw(stdscr, y, (x1+x - strlen(ptr))/4, "%s", ptr);
     }
     wrefresh(stdscr);
 }
@@ -160,6 +163,37 @@ void updatePrList(void)
     return;
 }
 
+void write_pr_to_window(bool selected, int line_no, PrInfo pr)
+{
+    int y, x;
+    char str[1024];
+
+    getmaxyx(win_prlist, y, x);
+    wmove(win_prlist, line_no, 0);
+    snprintf(str, 1024, format_flag ? format2 : format1, format_pr(pr));
+    str[x-1] = 0;
+    mvwprintw(win_prlist, line_no, 0, "%s", str);
+    wmove(win_prlist, line_no, 0);
+    if(selected)
+    {
+        wchgat(win_prlist, x, A_DIM, SELECTED_TEXT_COLOR, 0);
+    }
+    else
+    {
+        int color = NORMAL_TEXT_COLOR;
+
+        if(pr.pr_state == STATE_WORKING)
+        {
+            color = NORMAL_TEXT_COLOR_GREEN;
+        }
+        else if(pr.pr_state == STATE_WAITING)
+        {
+            color = NORMAL_TEXT_COLOR_RED;
+        }
+        wchgat(win_prlist, x, A_DIM, color, 0);
+    }
+    wrefresh(win_prlist);
+}
 
 void updatePrWindow(void)
 {
@@ -182,32 +216,20 @@ void updatePrWindow(void)
     wattrset(win_prlist, COLOR_PAIR(NORMAL_TEXT_COLOR));
     for(int i = 0; i < length; i++)
     {
-        char str[1024];
-        snprintf(str, 1024, format_flag ? format2 : format1, format_pr(prlist[i]));
-        str[x-1] = 0;
-        mvwprintw(win_prlist, i, 0, "%s", str);
+        write_pr_to_window(i == 0 ? true : false, i, prlist[i]);
     }
-    wmove(win_prlist, pr_cur_line, 0);
-    wchgat(win_prlist, x, A_DIM, SELECTED_TEXT_COLOR, 0);
-    wrefresh(win_prlist);
 }
 
 void PrWindowScrollUp(void)
 {
-    int cur_ln = pr_cur_line;
-    int y, x;
-
 
     if(pr_cur_line == 0 && pr_index == 0)
     {
         return;
     }
 
-    getmaxyx(win_prlist, y, x);
-    wmove(win_prlist, pr_cur_line, 0);
-    wchgat(win_prlist, x, 0, NORMAL_TEXT_COLOR, 0);
-
-    if(cur_ln == 0)
+    write_pr_to_window(false, pr_cur_line, prlist[pr_index+pr_cur_line]);
+    if(pr_cur_line == 0)
     {
         wscrl(win_prlist, -1);
         pr_index--;
@@ -218,32 +240,20 @@ void PrWindowScrollUp(void)
         pr_cur_line--;
     }
 
-    {
-        char str[1024];
-        snprintf(str, 1024, format_flag ? format2 : format1, format_pr(prlist[pr_index+pr_cur_line]));
-        str[x-1] = 0;
-        mvwprintw(win_prlist, pr_cur_line , 0, "%s", str);
-    }
-
-    wmove(win_prlist, pr_cur_line, 0);
-    wchgat(win_prlist, x, A_DIM, SELECTED_TEXT_COLOR, 0);
-    wrefresh(win_prlist);
+    write_pr_to_window(true, pr_cur_line, prlist[pr_index+pr_cur_line]);
 }
 void PrWindowScrollDown(void)
 {
     int cur_ln = pr_cur_line;
     int y, x;
 
-
+    getmaxyx(win_prlist, y, x);
     if((pr_index + cur_ln) == (prlist.size() - 1))
     {
         return;
     }
 
-    getmaxyx(win_prlist, y, x);
-    wmove(win_prlist, pr_cur_line, 0);
-    wchgat(win_prlist, x, 0, NORMAL_TEXT_COLOR, 0);
-
+    write_pr_to_window(false, pr_cur_line, prlist[pr_index+pr_cur_line]);
     if(cur_ln == y-1)
     {
         wscrl(win_prlist, +1);
@@ -255,16 +265,7 @@ void PrWindowScrollDown(void)
         pr_cur_line++;
     }
 
-    {
-        char str[1024];
-        snprintf(str, 1024, format_flag ? format2 : format1, format_pr(prlist[pr_index+pr_cur_line]));
-        str[x-1] = 0;
-        mvwprintw(win_prlist, pr_cur_line, 0, "%s", str);
-    }
-
-    wmove(win_prlist, pr_cur_line, 0);
-    wchgat(win_prlist, x, A_DIM, SELECTED_TEXT_COLOR, 0);
-    wrefresh(win_prlist);
+    write_pr_to_window(true, pr_cur_line, prlist[pr_index+pr_cur_line]);
 }
 
 char* read_string(WINDOW *win, const bool number, int min_length )
@@ -528,7 +529,7 @@ int start_ui(void)
                     break;
                 }
             case 27: /*ESC Key*/ 
-//            case KEY_F(4):
+            case KEY_F(4):
                 {
                     finish(0);                    
                 }
