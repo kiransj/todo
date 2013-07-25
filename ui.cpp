@@ -20,6 +20,7 @@ using namespace std;
 #define LOG_ERROR_TEXT_COLOR        6
 #define NORMAL_TEXT_COLOR_RED       7
 #define NORMAL_TEXT_COLOR_GREEN     8
+#define NORMAL_TEXT_COLOR_BLUE      9
 
 int pr_index, pr_cur_line;
 WINDOW *win_prlist, *win_scratch;
@@ -71,11 +72,12 @@ int ncurse_init(void)
     signal(SIGINT, finish);
     signal(SIGTSTP, stop_program);
     signal(SIGCONT, resume_program);
-    init_pair(BORDER_COLOR,  COLOR_MAGENTA, COLOR_BLACK);
+    init_pair(BORDER_COLOR,  COLOR_YELLOW, COLOR_BLACK);
     init_pair(SELECTED_TEXT_COLOR,  COLOR_BLACK, COLOR_WHITE);
     init_pair(NORMAL_TEXT_COLOR,  COLOR_WHITE, COLOR_BLACK);
     init_pair(NORMAL_TEXT_COLOR_RED,  COLOR_RED, COLOR_BLACK);
     init_pair(NORMAL_TEXT_COLOR_GREEN,  COLOR_GREEN, COLOR_BLACK);
+    init_pair(NORMAL_TEXT_COLOR_BLUE,  COLOR_BLUE, COLOR_BLACK);
     init_pair(MENU_BAR,  COLOR_WHITE, COLOR_BLUE);
     init_pair(LOG_NORMAL_TEXT_COLOR, COLOR_GREEN, COLOR_BLACK);
     init_pair(LOG_ERROR_TEXT_COLOR,  COLOR_RED, COLOR_BLACK);
@@ -144,6 +146,7 @@ void draw_ui(void)
     print_menu_bar();
     draw_box(0, 1, X-1, Y/4+2, "PR List");
 
+    wattrset(win_scratch, COLOR_PAIR(NORMAL_TEXT_COLOR) | A_DIM);
     wrefresh(stdscr);
 }
 
@@ -198,6 +201,7 @@ void write_pr_to_window(bool selected, int line_no, PrInfo pr)
 void updatePrWindow(void)
 {
     int y, x, length;
+    werase(win_prlist);
     wclear(win_prlist);
     getmaxyx(win_prlist, y, x);
 
@@ -218,6 +222,8 @@ void updatePrWindow(void)
     {
         write_pr_to_window(i == 0 ? true : false, i, prlist[i]);
     }
+    pr_index = 0;
+    pr_cur_line = 0;
 }
 
 void PrWindowScrollUp(void)
