@@ -388,9 +388,18 @@ void show_pr(const char *pr_number)
     mvwprintw(win_scratch, 2, 1, "Pr Header: %s", pr.pr_header);
     mvwprintw(win_scratch, 3, 1, "Pr State : %s", pr_state_tostring(pr.pr_state));
     mvwprintw(win_scratch, 4, 1, "Pr Date  : %s", date_to_str(pr.pr_date));
+    int offset = 0;
     for(int i = 0; i < pr.pr_desc.size(); i++)
     {
-        mvwprintw(win_scratch, 6+i, 1, "    %s > %s", date_to_str(pr.pr_desc[i].updated_date), pr.pr_desc[i].pr_desc);
+        int count = 0, j = 0;
+        while(pr.pr_desc[i].pr_desc[j] != '\0')
+        {
+            if(pr.pr_desc[i].pr_desc[j] == '\n')
+                count++;
+            j++;
+        }
+        mvwprintw(win_scratch, 6+i+offset,0, "%s>%c%s", date_to_str(pr.pr_desc[i].updated_date), (count == 0) ? ' ' : '\n', pr.pr_desc[i].pr_desc);
+        offset += count ? (count + 1) : 0;
     }
     wrefresh(win_scratch);
     return;
@@ -459,6 +468,7 @@ void AddUpdate(const char *pr_number)
     PrInfo pr;    
     SqlDB todo = OpenDB();
     char *update;
+    bool file = false;
     if(todo.get_pr(pr_number, &pr) == false)
     {
         log(true, "%s", todo.last_error());
@@ -468,18 +478,53 @@ void AddUpdate(const char *pr_number)
     mvwprintw(win_scratch, 1, 1, "Pr Number: %s", pr.pr_number);
     mvwprintw(win_scratch, 2, 1, "Pr Header: %s", pr.pr_header);
     mvwprintw(win_scratch, 3, 1, "Pr State : %s", pr_state_tostring(pr.pr_state));
-    mvwprintw(win_scratch, 4, 1, "Pr Date  : %s", date_to_str(pr.pr_date));
-    mvwprintw(win_scratch, 6, 1, "your update > ");
+    mvwprintw(win_scratch, 4, 1, "Pr Date  : %s", date_to_str(pr.pr_date));    
+    mvwprintw(win_scratch, 6, 1, "Read update from file (Y/N) ? ");
     wrefresh(win_scratch);
+    int ch = getch();
+    if(ch == 'Y')
+    {
+        file = true;
+        mvwprintw(win_scratch, 6, 1, "                                     ");
+    }
+    mvwprintw(win_scratch, 6, 1, (false == file) ? "your update > " : "file name > ");
     update = read_string(win_scratch, false, 5);    
     if(NULL != update)
     {
-        todo.add_update(pr_number, update); 
+        if(file == false)
+        {
+            todo.add_update(pr_number, update); 
+        }
+        else
+        {
+            int len = 0, count = 1;
+            char *buffer = (char*)malloc(1024*10);; 
+            FILE *fp = fopen(update, "r");
+            if(NULL == fp)
+            {
+                log(true, "unable to open file '%s'", update);
+                goto END;
+            }
+            while(!feof(fp) && len < (1024*10 - 1))
+            {
+                len += fread(buffer+len, 1, 1,  fp);
+                if(buffer[len-1] == '\'')
+                    buffer[len++] = '\'';
+            }
+            fclose(fp);
+            buffer[len] = '\0';
+            if(false == todo.add_update(pr_number, buffer))
+            {
+                log(true, "%s", todo.last_error());
+            }
+            free(buffer);
+        }
     }
     else
     {
         log(false, "adding update to pr cancelled");
     }
+END:    
     wclear(win_scratch);
     wrefresh(win_scratch);   
     updatePrList();
