@@ -51,13 +51,13 @@ const char * time_since(time_t old_time)
     diff = diff/24;
     if(diff < 7)
     {
-        snprintf(str, 128, "%2d Dy%s Ago ", (int)diff, ((int)diff) == 1 ? " " : "s");
+        snprintf(str, 128, "%2d Dy%s Ago", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
     diff = diff/7;
     if(diff <= 4)
     {
-        snprintf(str, 128, "%2d Wk%s Ago ", (int)diff, ((int)diff) == 1 ? " " : "s");
+        snprintf(str, 128, "%2d Wk%s Ago", (int)diff, ((int)diff) == 1 ? " " : "s");
         return str;
     }
 
