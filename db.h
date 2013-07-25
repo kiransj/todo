@@ -37,7 +37,7 @@ typedef struct
     time_t             pr_date;
     PrState            pr_state;
     int                num_desc;
-
+    time_t             last_update;
     vector<PrDesc>     pr_desc;
 }PrInfo;
 

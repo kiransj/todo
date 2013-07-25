@@ -28,7 +28,7 @@ vector<PrInfo> prlist;
 bool format_flag;
 const char *format1 = "%-25s| %-25s| %-25s| %2d| %s";
 const char *format2 = "%-10s| %-10s| %-10s| %2d| %s";
-#define format_pr(pr) pr.pr_number, pr_state_tostring(pr.pr_state), time_since(pr.pr_date), pr.num_desc, pr.pr_header
+#define format_pr(pr) pr.pr_number, pr_state_tostring(pr.pr_state), time_since(pr.last_update == 0 ? pr.pr_date : pr.last_update), pr.num_desc, pr.pr_header
 
 static void finish(int sig)
 {

@@ -123,7 +123,8 @@ bool SqlDB::connect(const char *filepath)
                                             "PR_NUMBER TEXT PRIMARY KEY,"
                                             "PR_HEADER TEXT NOT NULL,"
                                             "PR_DATE INTEGER NOT NULL,"
-                                            "PR_STATE INTEGER NOT NULL"
+                                            "PR_STATE INTEGER NOT NULL,"
+                                            "LAST_UPDATE INTEGER"
                                             ");";
 
     const char *query_create_desc_table =   "CREATE TABLE IF NOT EXISTS PR_DESC (" 
@@ -330,10 +331,10 @@ vector<PrInfo> SqlDB::get_all_pr(void)
 {
     vector<PrInfo> prlist;
 
-    const char *query_all = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, "
+    const char *query_all = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, P.LAST_UPDATE, "
                             "(SELECT COUNT(*) FROM PR_DESC WHERE PR_NUMBER = P.PR_NUMBER) AS COUNT "
                             "FROM ToDoList as P "
-                            "ORDER By PR_STATE ASC, PR_DATE DESC;";
+                            "ORDER By PR_STATE, LAST_UPDATE DESC, PR_DATE DESC;";
     if(status == false)
     {
         snprintf(last_error_msg, 1024, "First open the database before any query");
@@ -355,7 +356,8 @@ vector<PrInfo> SqlDB::get_all_pr(void)
                 strcpy(pr.pr_header, (char*)sqlite3_column_text(statement, 1));
                 pr.pr_state = (PrState)sqlite3_column_int(statement, 2);
                 pr.pr_date = (time_t)sqlite3_column_int(statement, 3);
-                pr.num_desc = (int)sqlite3_column_int(statement, 4);
+                pr.last_update = (time_t)sqlite3_column_int(statement, 4);
+                pr.num_desc = (int)sqlite3_column_int(statement, 5);
                 prlist.push_back(pr);
             }
             sqlite3_finalize(statement);
@@ -371,6 +373,7 @@ vector<PrInfo> SqlDB::get_all_pr(void)
 
 bool SqlDB::add_update(const char *pr_number, const char *msg)
 {
+    bool flag;
     char query_insert_update[1024];
     time_t ti;
     time(&ti);    
@@ -382,7 +385,14 @@ bool SqlDB::add_update(const char *pr_number, const char *msg)
         snprintf(last_error_msg, 1024, "First open the database before any query");
         return false;
     }
-    return execute_stmt(query_insert_update);
+    flag = execute_stmt(query_insert_update);
+    if(flag == true)
+    {
+        char query_update_last_update[1024];
+        snprintf(query_update_last_update, 1024, "UPDATE TODOLIST SET LAST_UPDATE=%lu WHERE PR_NUMBER='%s'", ti, pr_number);
+        flag = execute_stmt(query_update_last_update);
+    }
+    return flag;
 }
 
 bool SqlDB::change_state(const char *pr_number, PrState new_state)
