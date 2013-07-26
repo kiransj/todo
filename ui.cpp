@@ -290,8 +290,13 @@ char* read_string(WINDOW *win, const bool number, int min_length )
             wprintw(win, "%s", temp+i);
             i += n;
         }
-        else if(ch == 27)
+        else if(ch == 27 || (ch == KEY_RESIZE))
         {
+            if(ch == KEY_RESIZE)
+            {
+                draw_ui();
+                updatePrWindow();
+            }
             return NULL;
         }
         else if(isdigit(ch) || (ch >= 0x20 && ch <= 0x7E) && (number == false) )
@@ -481,12 +486,14 @@ void AddUpdate(const char *pr_number)
     mvwprintw(win_scratch, 4, 1, "Pr Date  : %s", date_to_str(pr.pr_date));    
     mvwprintw(win_scratch, 6, 1, "Read update from file (Y/N) ? ");
     wrefresh(win_scratch);
-    int ch = getch();
-    if(ch == 'Y')
+    if(getch() == 'Y')
     {
         file = true;
-        mvwprintw(win_scratch, 6, 1, "                                     ");
     }
+    wmove(win_scratch, 6, 0);
+    wclrtoeol(win_scratch);
+    wrefresh(win_scratch);
+    
     mvwprintw(win_scratch, 6, 1, (false == file) ? "your update > " : "file name > ");
     update = read_string(win_scratch, false, 5);    
     if(NULL != update)

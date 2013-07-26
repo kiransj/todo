@@ -33,7 +33,7 @@ const char * time_since(time_t old_time)
 
     if(diff < 60)
     {
-        snprintf(str, 128, "few Sec Ago");
+        snprintf(str, 128, "fw Sec Ago");
         return str;
     }
     diff = diff/60;
