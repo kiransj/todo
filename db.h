@@ -5,6 +5,8 @@
 #include <vector>
 using namespace std;
 
+#define TODO_VERSION "0.02"
+
 #define DB_NAME ".todo.db"
 static const char *PrState_string[] = { "UNKOWN", 
                                         "NOT_STARTED",

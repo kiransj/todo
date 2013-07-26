@@ -435,6 +435,14 @@ int start_ui(void);
 int main(int argc, char *argv[])
 {
     snprintf(DEFAULT_FILE_NAME, 1024, "%s/%s", getenv("HOME"), DB_NAME);
+    if(argc == 2)
+    {
+        if(strcmp(argv[1], "--version") == 0)
+        {
+            printf("Version : %s\n", TODO_VERSION);
+            return 0;
+        }
+    }
     start_ui();
     return 0;
 }
