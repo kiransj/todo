@@ -375,7 +375,7 @@ const char * date_to_str(time_t t)
     struct tm *timeinfo;
     static char buffer[1024];
     timeinfo = localtime(&t);
-    strftime(buffer, 1024, "%e-%b-%y %I:%M%p", timeinfo);
+    strftime(buffer, 1024, "%2e-%b-%y %I:%M%p", timeinfo);
     return buffer;
 }
 void show_pr(const char *pr_number)
@@ -403,7 +403,23 @@ void show_pr(const char *pr_number)
                 count++;
             j++;
         }
-        mvwprintw(win_scratch, 6+i+offset,0, "%s>%c%s", date_to_str(pr.pr_desc[i].updated_date), (count == 0) ? ' ' : '\n', pr.pr_desc[i].pr_desc);
+        if(count == 0)
+        {
+            mvwprintw(win_scratch, 6+i+offset,0, " %s>%c%s", date_to_str(pr.pr_desc[i].updated_date), (count == 0) ? ' ' : '\n', pr.pr_desc[i].pr_desc);
+        }
+        else
+        {
+            j = 0;
+            mvwprintw(win_scratch, 6+i+offset,0, " %s>\n\t\t   ", date_to_str(pr.pr_desc[i].updated_date));
+            while(pr.pr_desc[i].pr_desc[j] != '\0')
+            {
+                if(pr.pr_desc[i].pr_desc[j] == '\n')
+                    wprintw(win_scratch, "\n\t\t   ");
+                else
+                    wprintw(win_scratch, "%c", pr.pr_desc[i].pr_desc[j]);
+                j++;
+            }
+        }
         offset += count ? (count + 1) : 0;
     }
     wrefresh(win_scratch);

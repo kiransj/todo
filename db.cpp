@@ -123,8 +123,7 @@ bool SqlDB::connect(const char *filepath)
                                             "PR_NUMBER TEXT PRIMARY KEY,"
                                             "PR_HEADER TEXT NOT NULL,"
                                             "PR_DATE INTEGER NOT NULL,"
-                                            "PR_STATE INTEGER NOT NULL,"
-                                            "LAST_UPDATE INTEGER"
+                                            "PR_STATE INTEGER NOT NULL"
                                             ");";
 
     const char *query_create_desc_table =   "CREATE TABLE IF NOT EXISTS PR_DESC (" 
@@ -331,9 +330,10 @@ vector<PrInfo> SqlDB::get_all_pr(void)
 {
     vector<PrInfo> prlist;
 
-    const char *query_all = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, P.LAST_UPDATE, "
+    const char *query_all = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, "
+                            "(select MAX(UPDATED_DATE) from pr_desc where pr_number = P.pr_number) as LAST_UPDATE,"
                             "(SELECT COUNT(*) FROM PR_DESC WHERE PR_NUMBER = P.PR_NUMBER) AS COUNT "
-                            "FROM ToDoList as P "
+                            "FROM ToDoList as P "                           
                             "ORDER By PR_STATE, LAST_UPDATE DESC, PR_DATE DESC;";
     if(status == false)
     {
@@ -386,12 +386,7 @@ bool SqlDB::add_update(const char *pr_number, const char *msg)
         return false;
     }
     flag = execute_stmt(query_insert_update);
-    if(flag == true)
-    {
-        char query_update_last_update[1024];
-        snprintf(query_update_last_update, 1024, "UPDATE TODOLIST SET LAST_UPDATE=%lu WHERE PR_NUMBER='%s'", ti, pr_number);
-        flag = execute_stmt(query_update_last_update);
-    }
+
     return flag;
 }
 

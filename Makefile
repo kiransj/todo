@@ -4,7 +4,7 @@ AR=ar
 CFLAGS := -O2 
 WARNINGS:= 
 INCLUDES := -I/usr/include/ncurses -I.
-LIB := -L/usr/lib -lncurses
+LIB := -L/usr/lib -lncurses -ldl
 
 CPP_FILES = 
 CPP_FILES += db.cpp
@@ -17,18 +17,17 @@ COMPILER_OBJECTS :=
 COMPILER_OBJECTS_CPP := $(CPP_FILES:.cpp=.o)
 COMPILER_OBJECTS_C := $(C_FILES:.c=.o) 	
 
-OUTPUT=todo
+OUTPUT=todo.out
 
 all: $(OUTPUT)
 	@echo "Created $(OUTPUT) file"
 
 $(OUTPUT): $(COMPILER_OBJECTS_CPP) $(COMPILER_OBJECTS_C)
-	@g++ $(COMPILER_OBJECTS_CPP) $(COMPILER_OBJECTS_C) $(LIB) -o $(OUTPUT)
+	$(CPP) $(COMPILER_OBJECTS_CPP) $(COMPILER_OBJECTS_C) $(LIB) -o $(OUTPUT)
 
 %.o:%.cpp
 	@echo "compiling $^"
 	@$(CPP) $(CFLAGS) $(WARNINGS) $(INCLUDES) -c $^  -o $@
-
 
 %.o:%.c
 	@echo "compiling $^"
@@ -38,6 +37,6 @@ clean:
 	@rm -f $(COMPILER_OBJECTS_C) $(COMPILER_OBJECTS_CPP) $(OUTPUT)
 
 install: $(OUTPUT)
-	@cp $(OUTPUT) $(HOME)/root/bin
+	@cp $(OUTPUT) $(HOME)/root/bin/todo
 
 
