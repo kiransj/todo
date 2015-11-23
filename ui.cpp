@@ -119,7 +119,7 @@ void print_menu_bar(void)
     wmove(stdscr, 0, 0);
     wchgat(stdscr, X, 0, MENU_BAR, 0);
     attrset(COLOR_PAIR(MENU_BAR));
-    mvwprintw(stdscr, 0, 0, "%s %15s %15s %15s %15s", "F1 NewPR", "F2 ChangeState", "F3 Update", "F4 Exit", "F5 Search");
+    mvwprintw(stdscr, 0, 0, "%s %15s %15s %15s %15s", "F2 NewPR", "F3 ChangeState", "F4 Update", "F5 Search", "F9 Quit");
 }
 void draw_ui(void)
 {
@@ -560,6 +560,7 @@ int start_ui(void)
     draw_ui();
     updatePrList();
     updatePrWindow();
+    show_pr(prlist[pr_index+pr_cur_line].pr_number);
     while(1)
     {
         int ch = getch();
@@ -571,6 +572,7 @@ int start_ui(void)
                     updatePrWindow();
                 }                
                 break;
+            case 'i': case 'I':
             case '\n':
                 {
                     show_pr(prlist[pr_index+pr_cur_line].pr_number);
@@ -579,31 +581,37 @@ int start_ui(void)
             case KEY_DOWN:
                 {
                     PrWindowScrollDown();
+                    show_pr(prlist[pr_index+pr_cur_line].pr_number);
                     break;
                 }
             case KEY_UP:
                 {
                     PrWindowScrollUp();
+                    show_pr(prlist[pr_index+pr_cur_line].pr_number);
                     break;
                 }
-            case KEY_F(2):
+            case 'C':
+            case KEY_F(3):
                 {
                     log(false, "change pr state");
                     ChangePrState(prlist[pr_index + pr_cur_line].pr_number);
                     break;
                 }
-            case KEY_F(1):
+            case 'N':
+            case KEY_F(2):
                 {
                     ReadNewPr();
                     break;
                 }
-            case KEY_F(3):
+            case 'U':
+            case KEY_F(4):
                 {
                     AddUpdate(prlist[pr_index + pr_cur_line].pr_number);
                     break;
                 }
+            case 'Q': case 'q':
             case 27: /*ESC Key*/ 
-            case KEY_F(4):
+            case KEY_F(9):
                 {
                     finish(0);                    
                 }
