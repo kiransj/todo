@@ -326,6 +326,54 @@ bool SqlDB::get_pr(const char *pr_number, PrInfo *pr)
 
     return false;
 }
+
+vector<PrInfo> SqlDB::get_filtered_pr(PrState state)
+{
+    vector<PrInfo> prlist;
+
+    const char *query_filtered = "SELECT P.PR_NUMBER, P.PR_HEADER, P.PR_STATE, P.PR_DATE, "
+                            "(select MAX(UPDATED_DATE) from pr_desc where pr_number = P.pr_number) as LAST_UPDATE,"
+                            "(SELECT COUNT(*) FROM PR_DESC WHERE PR_NUMBER = P.PR_NUMBER) AS COUNT "
+                            "FROM ToDoList as P "
+                            "WHERE P.PR_STATE = %d "
+                            "ORDER By PR_STATE, LAST_UPDATE DESC, PR_DATE DESC;";
+    char query_filter_str[1024];
+    snprintf(query_filter_str, 1024, query_filtered, state);
+    if(status == false)
+    {
+        snprintf(last_error_msg, 1024, "First open the database before any query");
+        return prlist;
+    }
+    else
+    {
+        int rc;
+        sqlite3_stmt *statement;        
+        rc = sqlite3_prepare_v2(database, query_filter_str, -1, &statement, 0);
+        if(rc == SQLITE_OK)
+        {
+            int cols = sqlite3_column_count(statement);
+            int rc;
+            while((rc = sqlite3_step(statement)) == SQLITE_ROW)
+            {
+                PrInfo pr;
+                strcpy(pr.pr_number, (char*)sqlite3_column_text(statement, 0));
+                strcpy(pr.pr_header, (char*)sqlite3_column_text(statement, 1));
+                pr.pr_state = (PrState)sqlite3_column_int(statement, 2);
+                pr.pr_date = (time_t)sqlite3_column_int(statement, 3);
+                pr.last_update = (time_t)sqlite3_column_int(statement, 4);
+                pr.num_desc = (int)sqlite3_column_int(statement, 5);
+                prlist.push_back(pr);
+            }
+            sqlite3_finalize(statement);
+        }
+        else
+        {
+            snprintf(last_error_msg, 1024, "Query '%s' failed", query_filter_str);
+        }
+    }
+
+    return prlist;
+}
 vector<PrInfo> SqlDB::get_all_pr(void)
 {
     vector<PrInfo> prlist;

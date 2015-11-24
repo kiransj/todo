@@ -119,7 +119,7 @@ void print_menu_bar(void)
     wmove(stdscr, 0, 0);
     wchgat(stdscr, X, 0, MENU_BAR, 0);
     attrset(COLOR_PAIR(MENU_BAR));
-    mvwprintw(stdscr, 0, 0, "%s %15s %15s %15s %15s", "F2 NewPR", "F3 ChangeState", "F4 Update", "F5 Search", "F9 Quit");
+    mvwprintw(stdscr, 0, 0, "%s | %15s | %15s | %15s | %15s", "F2 NewPR", "F3 ChangeState", "F4 Update", "F5 Filter", "F9 Quit");
 }
 void draw_ui(void)
 {
@@ -336,7 +336,7 @@ void ReadNewPr(void)
     char pr_number[16], pr_header[64];
     char *ptr;
     wclear(win_scratch);
-    mvwprintw(win_scratch, 1, 1, "Enter the pr number : ");          
+    mvwprintw(win_scratch, 1, 1, "Enter the pr number : ");
     ptr = read_string(win_scratch, true, 6);
     if(ptr == NULL)
     {
@@ -422,6 +422,55 @@ void show_pr(const char *pr_number)
         }
         offset += count ? (count + 1) : 0;
     }
+    wrefresh(win_scratch);
+    return;
+}
+void FilterPrList(void)
+{
+    int i = 0;
+    const int state_count = sizeof(PrState_string)/sizeof(PrState_string[0]);
+    wclear(win_scratch);    
+    for(i = 1; i < (state_count - 1); i++)
+    {        
+        mvwprintw(win_scratch, i, 1, "    %d>  %-s", i, PrState_string[i]);
+    }
+    mvwprintw(win_scratch, i, 1, "    %d>  %-s", i, "ALL");
+    mvwprintw(win_scratch, ++i, 1, "input> ");
+    wrefresh(win_scratch);
+    int ch;
+    while(1)
+    {
+        ch = getch();
+        if(isdigit(ch) && (ch >= '1' && ch < ('0' + i)))
+        {
+            SqlDB todo = OpenDB();
+            if(ch < '0' + i - 1) {
+                if(todo.get_filtered_pr((PrState)(int(ch - '0'))).size() > 0)
+                {
+                    prlist = todo.get_filtered_pr((PrState)(int(ch - '0')));        
+                    log(false, "count %d", prlist.size());
+                } else{
+                    log(false, "no pr with required state. Not updating UI", prlist.size());
+                }
+            } else {
+                prlist = todo.get_all_pr();
+                log(false, "count %d", prlist.size());
+            }            
+            updatePrWindow();
+
+            break;
+        } 
+        else if(ch == 27)
+        {
+            log(false, "cancelling pr state updatation");
+            break;
+        }
+        else
+        {
+            log(true, "valid choice is number between '1' and '%d'", i-1);
+        }
+    }
+    wclear(win_scratch);
     wrefresh(win_scratch);
     return;
 }
@@ -588,6 +637,13 @@ int start_ui(void)
                 {
                     PrWindowScrollUp();
                     show_pr(prlist[pr_index+pr_cur_line].pr_number);
+                    break;
+                }
+            case 'F':
+            case KEY_F(5):
+                {
+                    log(false, "filter the pr list");
+                    FilterPrList();
                     break;
                 }
             case 'C':

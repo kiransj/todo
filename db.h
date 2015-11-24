@@ -73,6 +73,7 @@ class SqlDB
         bool connect(const char *filepath = NULL);
         bool add_new_pr(const PrInfo pr);
         vector<PrInfo> get_all_pr(void);
+        vector<PrInfo> get_filtered_pr(PrState state);
         int count(void);
         char* last_error(void) { return last_error_msg; }
         bool get_pr(const char *pr_number, PrInfo *pr);
